@@ -1,0 +1,13 @@
+{
+    "module_name": "CAD_Processor",
+    "version": "1.0.0",
+    "settings": {
+        "input_filename": "CAD_Contract.xlsx",
+        "output_filename": "Processed_CAD_Contract.xlsx",
+        "target_years": []
+    },
+    "performance_settings": {
+        "chunk_size": 50000,
+        "dry_run_limit": 0
+    }
+}

@@ -1,0 +1,14 @@
+{
+    "module_name": "SDF_Processor",
+    "version": "1.0.0",
+    "settings": {
+        "email_sender": "shangchieh.lee@uts.edu.au",
+        "email_cc": "stella.ng@uts.edu.au",
+        "input_pattern_reference": "Reference",
+        "input_pattern_transaction": "Data_Source"
+    },
+    "performance_settings": {
+        "chunk_size": 50000,
+        "dry_run_limit": 0
+    }
+}

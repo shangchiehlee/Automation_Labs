@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cad_processor"
+version = "1.0.0"
+description = "Casual Academic Contract Financial Processor"
+authors = [
+    {name = "Shane Lee", email = "shangchieh.lee@uts.edu.au"}
+]
+dependencies = [
+    "pandas",
+    "openpyxl",
+    "numpy"
+]
