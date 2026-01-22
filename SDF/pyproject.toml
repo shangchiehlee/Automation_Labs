@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sdf_processor"
+version = "1.0.0"
+description = "Staff Development Fund Reconciliation and Anonymisation Engine"
+authors = [
+    {name = "Shane Lee", email = "shangchieh.lee@uts.edu.au"}
+]
+dependencies = [
+    "pandas",
+    "openpyxl"
+]

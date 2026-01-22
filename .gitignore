@@ -1,0 +1,33 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Global Input/Output Protection (Safety Net)
+**/inputs/*
+**/outputs/*
+!**/inputs/.gitkeep
+!**/outputs/.gitkeep
+SDF/outputs/_sdf_validate/
+
+# Logs
+*.log
+
+# AI Governance and Local Config
+.agents.md
+.claude/
+.gemini/
+AGENTS.md
+AGENTS.override.md
+CLAUDE.md
+codex.md
+GEMINI.md
+instructions.md
+settings.json
+TEAM_GUIDE.md
