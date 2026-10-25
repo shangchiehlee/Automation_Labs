@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cad_processor"
+version = "1.0.0"
+description = "CAD contract workbook processor: subject and school cost per student, trends and fuzzy bands"
+authors = [
+    {name = "Shane Lee"}
+]
+dependencies = [
+    "pandas",
+    "openpyxl",
+    "numpy"
+]

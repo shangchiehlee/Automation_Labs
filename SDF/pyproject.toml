@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sdf_processor"
+version = "1.0.0"
+description = "Staff Development Fund (SDF) data preparation, statements and anonymisation"
+authors = [
+    {name = "Shane Lee"}
+]
+dependencies = [
+    "pandas",
+    "openpyxl"
+]

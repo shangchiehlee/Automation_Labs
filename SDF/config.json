@@ -1,0 +1,17 @@
+{
+    "module_name": "SDF_Processor",
+    "version": "1.0.0",
+    "settings": {
+        "email_sender": "sender@example.org",
+        "email_cc": "",
+        "email_general_contact": "general.enquiries@example.org",
+        "email_finance_contact": "finance.enquiries@example.org",
+        "email_sign_off": "Your name",
+        "input_pattern_reference": "Reference",
+        "input_pattern_transaction": "Data_Source"
+    },
+    "performance_settings": {
+        "chunk_size": 50000,
+        "dry_run_limit": 0
+    }
+}
