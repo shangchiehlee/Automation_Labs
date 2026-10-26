@@ -25,11 +25,6 @@ Purpose
   3) Report: subject-level table used to derive School-Year aggregates
   4) Fuzzy_Bands: a small fuzzy-logic component that assigns Low/Medium/High bands per year
 
-Evidence basis
-- Statements about behaviour are supported only by the code and the produced workbooks.
-- This script is designed for operational reproducibility. It does not claim scale properties
-  beyond what can be demonstrated from runs and the implemented algorithmic discipline.
-
 Inputs
 - inputs/CAD_Contract.xlsx (Excel workbook). The script detects the main data table by
   locating a header row containing required fields (for example, 'School').

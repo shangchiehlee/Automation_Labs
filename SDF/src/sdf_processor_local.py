@@ -254,7 +254,7 @@ class SQLiteBuffer:
 
         raise ValueError(f"Unsupported input file format: {file_path.suffix}")
 
-    # Backward-compatible alias retained in case other methods still call the old name.
+    # Excel-specific name for the same reader.
     def _excel_chunk_generator(self, file_path: Path, chunk_size: int) -> Iterator[pd.DataFrame]:
         yield from self._tabular_chunk_generator(file_path, chunk_size)
 
@@ -681,8 +681,7 @@ def main() -> None:
                 reporter = ReportGenerator(temp_dir, config)
                 reporter.generate_csv_reports(buffer)
 
-                # NOTE: Redundant Executive Summary generation removed as
-                # SDF_Spending_by_Account.csv provides the same data in machine-readable format.
+                # Account-level totals are provided by SDF_Spending_by_Account.csv.
 
                 for staff_df in buffer.get_joined_data_iterator():
                     reporter.generate_staff_statement(staff_df)

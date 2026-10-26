@@ -597,8 +597,7 @@ def main() -> None:
                     reporter = ReportGenerator(temp_dir, config)
                     reporter.generate_csv_reports(buffer)
                     
-                    # NOTE: Redundant Executive Summary generation removed as 
-                    # SDF_Spending_by_Account.csv provides the same data in machine-readable format.
+                    # Account-level totals are provided by SDF_Spending_by_Account.csv.
 
                     for staff_df in buffer.get_joined_data_iterator():
                         reporter.generate_staff_statement(staff_df)

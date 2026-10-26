@@ -54,9 +54,9 @@ From the repository root, create the shared virtual environment and install the 
 python SDF/src/sdf_processor.py
 ```
 
-### 3.3. Local variants
+### 3.3. Variants for more input types
 
-`sdf_processor_local.py` and `sdf_anonymizer_local.py` work in the same way as the standard scripts, with three differences:
+`sdf_processor_local.py` and `sdf_anonymizer_local.py` process data in the same way as the standard scripts, with three differences:
 
 - they also accept `.xlsm` and `.csv` input files
 - they ignore temporary Excel lock files (names starting with `~$`)
@@ -158,4 +158,4 @@ Transaction rows without a usable `TR_Code` do not stop the run. They are logged
 
 ## 8. Citation
 
-Lee, S. C. (2026). *Staff Development Fund (SDF) processor* (Version 1.0.0) [Computer software]. GitHub. https://github.com/shangchiehlee/Automation_Labs/tree/main/SDF
+Lee, S. C. (2026). *Staff Development Fund (SDF) processor* (Version 1.0.0) [Computer software]. GitHub. https://github.com/shangchiehlee/data_automation/tree/main/SDF
