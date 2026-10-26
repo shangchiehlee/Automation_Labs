@@ -1,56 +1,47 @@
 #!/usr/bin/env python3
 """cad_processor.py
 
-Program Overview: CAD Contract Processor (Deterministic + Fuzzy Banding)
+Program Overview: Casual Academic Database (CAD) Contract Processor
 Author: Shane Lee
 
 System Function:
-    Transforms a CAD export workbook into a deterministic, auditable output workbook with
-    processing metadata, trend analysis, a subject-level report, and fuzzy band assignments.
+    Turns a CAD contract export workbook into a summary workbook with four sheets:
+    1) Processing_Summary: what was read and excluded, the input file's SHA-256
+       fingerprint and the values used for banding
+    2) Trend_Analysis: cost per student for each school by year, with colour scales
+    3) Report: totals and cost per student for each subject by year
+    4) Fuzzy_Bands: a Low, Medium or High band for each school and year
 
 Architectural Pattern:
-    Implements a deterministic batch pipeline with explicit data-quality accounting.
+    Implements a batch pipeline that counts excluded and missing values as it runs.
 
-    1. Ingestion: Locates the header row in the source workbook and streams rows in read-only
-       mode to avoid loading the entire sheet into memory.
-    2. Processing: Aggregates subject-year and school-year metrics, computes cost-per-student,
-       and derives fuzzy anchors (min/median/max) per year.
-    3. Output: Writes multiple sheets (Processing Summary, Trend Analysis, Report, Fuzzy Bands)
-       with formatting and audit metadata.
+    1. Ingestion: Finds the header row in the source workbook and reads rows in read-only
+       mode, so the whole sheet is not loaded into memory.
+    2. Processing: Totals cost and students for each subject and year and for each school
+       and year, calculates cost per student, and takes the lowest, median and highest
+       positive value for each year as banding anchors.
+    3. Output: Writes the four sheets with formatting, and two log files.
 
-Purpose
-- Convert a CAD export workbook (CAD_Contract.xlsx) into a processed workbook with:
-  1) Processing_Summary: run metadata and observed data-quality counts
-  2) Trend_Analysis: School-by-year cost-per-student view with conditional formatting
-  3) Report: subject-level table used to derive School-Year aggregates
-  4) Fuzzy_Bands: a small fuzzy-logic component that assigns Low/Medium/High bands per year
+Inputs:
+    inputs/CAD_Contract.xlsx by default. The table is found by a header row containing the
+    columns in REQUIRED_COLUMNS (variants in COLUMN_ALIASES are recognised).
 
-Inputs
-- inputs/CAD_Contract.xlsx (Excel workbook). The script detects the main data table by
-  locating a header row containing required fields (for example, 'School').
+Outputs:
+    outputs/Processed_CAD_Contract.xlsx, outputs/cad_processor.log and
+    outputs/cad_processor_execution.log.
 
-Outputs
-- outputs/Processed_CAD_Contract.xlsx (Excel workbook) containing the sheets listed above.
-- outputs/cad_processor.log and outputs/cad_processor_execution.log (best-effort).
+Repeatability:
+    The same input file and environment give the same output. The SHA-256 fingerprint in
+    Processing_Summary identifies the exact input file used for a run.
 
-Determinism and auditability
-- Given identical input files and the same runtime environment, the transformation is intended
-  to be deterministic. The Processing_Summary sheet records the input file SHA-256 to provide
-  a stable fingerprint of the exact input used for a run.
+Banding:
+    Triangular membership functions use each year's anchors to give every school a Low,
+    Medium and High score; the highest score sets the band. The scores support comparison
+    within a year. They are not probabilities.
 
-Resource discipline
-- Uses read-only worksheet iteration for header detection and schema inspection.
-- Aggregation is performed with bounded intermediate structures (keys and summary rows).
-  Peak memory depends on dataframe size and the number of unique groups, not solely on row count.
-
-Fuzzy component
-- The fuzzy banding uses a triangular membership function with per-year anchors (min, median, max)
-  computed from finite, positive School-Year values. Membership values are decision-support signals,
-  not probabilities.
-
-Limitations
-- Input schema assumptions are intentionally narrow and should be treated as data contracts.
-  If headers or required columns change, header detection and column mapping may fail.
+Limitations:
+    If an export renames the required columns beyond the recognised variants, the table
+    cannot be found and the run stops with a list of the columns it looked for.
 """
 
 from __future__ import annotations
@@ -150,16 +141,18 @@ def resolve_paths(
     input_filename: str = DEFAULT_INPUT_FILENAME,
     output_filename: str = DEFAULT_OUTPUT_FILENAME,
 ) -> CADPaths:
-    """Resolve input and output paths relative to this script.
-    
+    """Resolve the input, output and log paths for a run.
+
     Inputs:
-    - base_dir: directory containing this script (typically CAD/src).
-    
+    - base_dir: the CAD folder. If omitted, it is found by looking upwards from this
+      script for a folder that contains config.json and an inputs/ folder.
+
     Outputs:
-    - CADPaths with absolute paths to the input workbook, output workbook, and log directory.
-    
+    - CADPaths with absolute paths to the folders, the input and output workbooks and
+      the two log files.
+
     Errors:
-    - None. This function does not touch the filesystem beyond path construction.
+    - None. Folders are not created here; existence is only checked while searching.
     """
 
     script_dir = Path(__file__).resolve().parent
@@ -775,7 +768,7 @@ def write_processing_summary(ws: openpyxl.worksheet.worksheet.Worksheet, dq: Dat
     """Write the Processing_Summary worksheet.
     
     Purpose:
-    - Provide a compact, auditable run record derived from observed inputs and processing counts.
+    - Record what each run read, excluded and used, so a result can be checked.
     
     Contents:
     - Input file identity (name, path, size, SHA-256)
@@ -794,7 +787,7 @@ def write_processing_summary(ws: openpyxl.worksheet.worksheet.Worksheet, dq: Dat
         ws.cell(r, 2, v)
         r += 1
 
-    # Anchor summary (deterministic, computed)
+    # Banding anchors for each year
     ws.cell(r + 1, 1, "Anchors used (finite positive School-Year values)").font = Font(bold=True)
     rr = r + 2
     for year in sorted(anchors.keys()):
@@ -821,10 +814,8 @@ def write_trend_analysis(
     """Write the Trend_Analysis worksheet.
     
     Contents:
-    - School-Year cost-per-student table with conditional formatting and a concise methodology block.
-    
-    Notes:
-    - Any narrative text is descriptive of the implemented computation and avoids unsupported claims.
+    - School-Year cost-per-student table with colour scales, and a short block that
+      describes the calculation and the banding anchors.
     """
 
     ws = wb.create_sheet("Trend Analysis")
@@ -839,7 +830,7 @@ def write_trend_analysis(
     year_cols = list(range(2, 2 + len(years)))
     _apply_number_formats_trend(ws, year_cols)
 
-    # Conditional formatting (green -> yellow -> red) per year column using numeric anchors
+    # Colour scale (green -> yellow -> red) for each year column, using that year's values
     for i, year in enumerate(years):
         col = 2 + i
         anchors = anchors_by_year.get(int(year))
@@ -856,7 +847,7 @@ def write_trend_analysis(
         )
         ws.conditional_formatting.add(rng, rule)
 
-    # Methodology & Insights block (computed and therefore auditable)
+    # Methodology & Insights block, built from the computed values
     block_col = 7  # G
     ws.cell(2, block_col, "Methodology & Insights").font = Font(bold=True, size=12)
     ws.cell(2, block_col).alignment = Alignment(wrap_text=True, vertical="top")
@@ -983,7 +974,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--base-dir", type=str, default=None, help="Project root containing inputs/, outputs/, config.json.")
     p.add_argument("--input-filename", type=str, default=DEFAULT_INPUT_FILENAME, help="Input file name in inputs/.")
     p.add_argument("--output-filename", type=str, default=DEFAULT_OUTPUT_FILENAME, help="Output file name in outputs/.")
-    p.add_argument("--verbose", action="store_true", help="Verbose logging.")
+    p.add_argument("--verbose", action="store_true", help="Show more detail in the log.")
     p.add_argument("--no-processing-summary", action="store_true", help="Do not add the Processing Summary sheet.")
     return p.parse_args()
 

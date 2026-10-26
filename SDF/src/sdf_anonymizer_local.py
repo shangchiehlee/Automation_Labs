@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Program Overview: Staff Development Fund (SDF) Data Anonymizer
+Program Overview: Staff Development Fund (SDF) Data Anonymiser (variant for more input types)
 Author: Shane Lee
 
 System Function:
@@ -10,13 +10,13 @@ System Function:
     relationships between records are kept. Values stored as numbers are not changed.
 
 Architectural Pattern:
-    Implements a streaming pipeline for Excel inputs.
-    
-    1. Ingestion: Uses a generator to stream Excel data in chunks (implemented via
-       OpenPyXL read_only iteration).
-    2. Processing: Builds a compiled regular expression from the PII map and replaces
-       matched tokens via a lookup map.
-    3. Output: Appends processed records to CSV output.
+    Reads the input files in chunks, so large files do not need to fit in memory.
+
+    1. Ingestion: Reads Excel (.xlsx, .xlsm) files through OpenPyXL in read-only mode,
+       and CSV files through pandas, in chunks. Ignores Excel lock files.
+    2. Processing: Builds one regular expression from the replacement list and replaces
+       each match with its placeholder.
+    3. Output: Appends the anonymised rows to CSV files.
 """
 
 import gc
@@ -108,8 +108,8 @@ def find_input_file(search_dir: Path, partial_name: str) -> Optional[Path]:
 
 def _excel_chunk_generator(file_path: Path, chunk_size: int) -> Iterator[pd.DataFrame]:
     """
-    Generator function yielding DataFrame chunks from an Excel file.
-    Utilises OpenPyXL in read_only mode to maintain O(1) memory usage.
+    Yields DataFrame chunks from an Excel file, read in OpenPyXL read-only mode so
+    memory use stays bounded by the chunk size.
     """
     wb = openpyxl.load_workbook(filename=file_path, read_only=True, data_only=True)
     try:
@@ -137,8 +137,7 @@ def _excel_chunk_generator(file_path: Path, chunk_size: int) -> Iterator[pd.Data
 
 def _csv_chunk_generator(file_path: Path, chunk_size: int) -> Iterator[pd.DataFrame]:
     """
-    Generator function yielding DataFrame chunks from a CSV file.
-    Uses pandas chunked reading to maintain bounded memory usage.
+    Yields DataFrame chunks from a CSV file, read in chunks with pandas.
     """
     for chunk in pd.read_csv(file_path, chunksize=chunk_size, low_memory=False):
         yield chunk
@@ -162,13 +161,12 @@ def _tabular_chunk_generator(file_path: Path, chunk_size: int) -> Iterator[pd.Da
 
 def build_pii_map(reference_path: Path) -> Dict[str, str]:
     """
-    Constructs the redaction dictionary from the Reference file.
-    
-    Strategy:
-        Iterates through reference data to collect names, IDs, and email components.
-        Constructs a deterministic mapping to obfuscated values.
+    Builds the replacement list from the reference file.
+
+    Collects first and family names, staff IDs and the name parts of email addresses,
+    and gives each one a placeholder. The same value always receives the same placeholder.
     """
-    logging.info("Building PII Map from Reference Data...")
+    logging.info("Building replacement list from reference data...")
     
     pii_words: Set[str] = set()
     staff_ids: Set[str] = set()
@@ -202,14 +200,14 @@ def build_pii_map(reference_path: Path) -> Dict[str, str]:
     id_map = {sid: f'9{str(i+1).zfill(6)}' for i, sid in enumerate(sorted_ids)}
     
     combined_map = {**name_map, **id_map}
-    logging.info(f"PII Map Built: {len(combined_map)} entries.")
+    logging.info(f"Replacement list built: {len(combined_map)} entries.")
     return combined_map
 
 
 class AnonymizerEngine:
     """
-    Encapsulates regex compilation and replacement logic.
-    Optimizes for O(N) replacement using a single compiled regex pattern.
+    Compiles the replacement list into one regular expression and applies it to text,
+    so each value is scanned once.
     """
     
     def __init__(self, pii_map: Dict[str, str]):
@@ -224,7 +222,7 @@ class AnonymizerEngine:
             self.regex = None
 
     def anonymize_text(self, text: Any) -> Any:
-        """Replaces PII tokens in the input text using the compiled regex."""
+        """Replaces names, IDs and email name parts in a text value with their placeholders."""
         if not self.regex or not isinstance(text, str):
             return text
         
@@ -240,7 +238,7 @@ class AnonymizerEngine:
 def process_stream(input_path: Path, output_path: Path, engine: AnonymizerEngine, 
                   chunk_size: int, dry_run: int) -> None:
     """
-    Streams input tabular data (Excel or CSV), applies anonymization, and appends results to CSV.
+    Reads an Excel or CSV file in chunks, anonymises each text value and appends the rows to CSV.
     """
     logging.info(f"Anonymising: {input_path.name} -> {output_path.name}")
 

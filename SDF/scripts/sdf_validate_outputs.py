@@ -4,12 +4,13 @@ Program Overview: Staff Development Fund (SDF) Output Validator
 Author: Shane Lee
 
 System Function:
-    Validates SDF output packages as a standalone utility. Optionally executes
-    the SDF pipeline and performs deterministic verification of generated
-    artefacts.
+    Checks SDF output packages: that each ZIP file contains the four summary CSV
+    files, that every TR_Code has seven digits, that the summaries are sorted as
+    expected and that each statement's TOTAL row equals the sum of its rows.
+    Optionally runs the processor first.
 
 Architectural Pattern:
-    Implements a streaming validation workflow with optional pipeline execution.
+    Reads CSV rows and worksheet rows one at a time, so large packages can be checked.
 
     1. Execution: Optionally runs sdf_processor.py and collects new ZIP outputs.
     2. Extraction: Extracts each ZIP into a temporary directory for inspection.

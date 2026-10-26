@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Program Overview: Staff Development Fund (SDF) Processor
+Program Overview: Staff Development Fund (SDF) Processor (variant for more input types)
 Author: Shane Lee
 
 System Function:
@@ -10,15 +10,16 @@ System Function:
     explaining the figures remain with the person running the workflow.
 
 Architectural Pattern:
-    Implements a hybrid memory and disk processing model using a temporary SQLite buffer
-    for transaction storage and SQL queries for joins and aggregations.
+    Holds the data in a temporary SQLite database on disk and uses SQL queries for
+    the joins and totals, so large files do not need to fit in memory.
 
-    1. Ingestion: Streams transaction Excel data via OpenPyXL generators into SQLite.
-       Reference data is loaded with pandas and written to SQLite.
+    1. Ingestion: Reads the reference and transaction files in chunks (Excel through
+       OpenPyXL, CSV through pandas) and writes them to SQLite. It also accepts .xlsm
+       files, ignores Excel lock files and closes files safely on Windows.
     2. Processing: Executes joins and aggregations via SQL queries. Creates an index on
        transactions(TR_Code) and defines TR_Code as the reference primary key.
-    3. Output: Encapsulates all generated artifacts and execution logs within a
-       single compressed ZIP archive.
+    3. Output: Packages the statements, email files, CSV summaries and execution log
+       in one ZIP file.
 """
 
 import gc
@@ -86,8 +87,7 @@ def setup_logging(log_file: Optional[Path] = None) -> None:
 
 class DataQualityAuditor:
     """
-    Provides structured logging for data quality anomalies.
-    Ensures traceability of ingestion errors to specific source file coordinates.
+    Logs data-quality issues with the chunk, row and column where each was found.
     """
     
     @staticmethod
@@ -110,8 +110,7 @@ class DataQualityAuditor:
 
 class DataHealthScorecard:
     """
-    Accumulator for data retention metrics.
-    Tracks valid vs. invalid rows to quantify data quality.
+    Counts input and valid rows, and logs the share retained at the end of a run.
     """
     
     def __init__(self) -> None:
@@ -147,8 +146,8 @@ scorecard = DataHealthScorecard()
 
 class SQLiteBuffer:
     """
-    Manages a temporary disk-based relational store to extend processing capacity
-    beyond available RAM.
+    Manages the temporary SQLite database that holds the data during a run, so large
+    files do not need to fit in memory.
 
     Implements the Context Manager pattern for resource management.
     """
@@ -260,7 +259,7 @@ class SQLiteBuffer:
 
     def _prepare_reference_frame(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Normalizes and validates reference data before SQL insertion.
+        Normalises and validates reference data before it is written to SQLite.
         """
         df = df.copy()
         df.columns = [str(c).replace(' ', '_') for c in df.columns]
@@ -453,7 +452,7 @@ class SQLiteBuffer:
                 writer.writerows(rows)
 
     def get_spenders_summary(self) -> pd.DataFrame:
-        """Aggregates spending by Staff Member."""
+        """Totals spending for each staff member."""
         query = """
             SELECT 
                 r.Staff_ID, r.First_Name, r.Family_Name, r.UTS_Email,
@@ -469,7 +468,7 @@ class SQLiteBuffer:
         return pd.read_sql(query, self.conn)
 
     def get_monthly_trends(self) -> pd.DataFrame:
-        """Aggregates spending by Year and Month."""
+        """Totals spending by year and month."""
         query = """
             SELECT Year, Month, COUNT(*) as Txn_Count, SUM(Net_Amount) as Total_Net_Spend
             FROM transactions
@@ -479,7 +478,7 @@ class SQLiteBuffer:
         return pd.read_sql(query, self.conn)
 
     def get_account_summary(self) -> pd.DataFrame:
-        """Aggregates spending by Account Name."""
+        """Totals spending by account."""
         query = """
             SELECT Account_Name, SUM(Net_Amount) as Total_Net_Spend, COUNT(*) as Txn_Count
             FROM transactions
@@ -492,7 +491,7 @@ class SQLiteBuffer:
 # --- REPORT GENERATOR ---
 
 class ReportGenerator:
-    """Executes the creation of reporting artifacts within a transient workspace."""
+    """Creates the statements, email files and CSV summaries in a temporary folder."""
     
     EMAIL_BODY_TEMPLATE = """Hi {first_name},
 
@@ -583,7 +582,7 @@ Kind regards,
 
 
 class Archiver:
-    """Compresses the workspace into a single ZIP deliverable."""
+    """Compresses the temporary folder into one ZIP file."""
     
     @staticmethod
     def create_zip(source_dir: Path, output_path: Path) -> None:
@@ -605,7 +604,7 @@ def main() -> None:
 
     # Initial logging to stdout
     setup_logging()
-    logging.info("--- SDF Processor (Streaming Edition) Started ---")
+    logging.info("--- SDF Processor Started ---")
 
     def find_input_file(inputs_dir: Path, pattern: str) -> Path:
         supported_suffixes = ('.xlsx', '.xlsm', '.csv')

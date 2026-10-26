@@ -13,7 +13,7 @@ This repository holds two Python modules that prepare administrative spreadsheet
 
 ## 2. Modules
 
-- **[SDF](./SDF):** prepares Staff Development Fund reporting data. It links transactions to staff records, calculates each person's totals, and produces a statement and a matching email file for each staff member, summary CSV files and a processing log, packaged in one ZIP file. It also includes an optional anonymisation utility and a validation script. This module is part of the MSc (Research) thesis described in `SDF/README.md`.
+- **[SDF](./SDF):** prepares Staff Development Fund (SDF) reporting data. It links transactions to staff records, calculates each person's totals, and produces a statement and a matching email file for each staff member, summary CSV files and a processing log, packaged in one ZIP file. It also includes an optional anonymisation utility and a validation script. This module is part of the MSc (Research) thesis described in `SDF/README.md`.
 - **[CAD](./CAD):** processes a Casual Academic Database (CAD) contract export workbook. It calculates cost per student by subject and school for each year, and writes a workbook with a processing summary, a trend view, a subject report and Low, Medium and High bands for each year.
 
 ---
